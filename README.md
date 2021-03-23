@@ -1,58 +1,123 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+/* If you're feeling fancy you can add interactivity 
+    to your site with Javascript */
+const clueHoldTime = 1000; //how long to hold each clue's light/sound
+const cluePauseTime = 333; //how long to pause in between clues
+const nextClueWaitTime = 1000; //how long to wait before starting playback of the clue sequence
+// prints "hi" in the browser's dev tools console
+var pattern = [2, 2, 4, 3, 2, 1, 2, 4];
+var progress = 0;
+var gamePlaying = false;
+var tonePlaying = false;
+var volume = 0.5; //must be between 0.0 and 1.0
+var guessCounter = 0;
+function startGame() {
+  //initialize game variables
+  progress = 0;
+  gamePlaying = true;
+  document.getElementById("startBtn").classList.add("hidden");
+  document.getElementById("stopBtn").classList.remove("hidden");
+  playClueSequence();
+}
 
-    <title>Hello!</title>
+function stopGame() {
+  gamePlaying = false;
+  document.getElementById("startBtn").classList.remove("hidden");
+  document.getElementById("stopBtn").classList.add("hidden");
+}
+// Sound Synthesis Functions
+const freqMap = {
+  1: 261.6,
+  2: 329.6,
+  3: 392,
+  4: 466.2
+};
+function playTone(btn, len) {
+  o.frequency.value = freqMap[btn];
+  g.gain.setTargetAtTime(volume, context.currentTime + 0.05, 0.025);
+  tonePlaying = true;
+  setTimeout(function() {
+    stopTone();
+  }, len);
+}
+function startTone(btn) {
+  if (!tonePlaying) {
+    o.frequency.value = freqMap[btn];
+    g.gain.setTargetAtTime(volume, context.currentTime + 0.05, 0.025);
+    tonePlaying = true;
+  }
+}
+function stopTone() {
+  g.gain.setTargetAtTime(0, context.currentTime + 0.05, 0.025);
+  tonePlaying = false;
+}
 
-    <!-- import the webpage's stylesheet -->
-    <link rel="stylesheet" href="/style.css" />
+//Page Initialization
+// Init Sound Synthesizer
+var context = new AudioContext();
+var o = context.createOscillator();
+var g = context.createGain();
+g.connect(context.destination);
+g.gain.setValueAtTime(0, context.currentTime);
+o.connect(g);
+o.start(0);
 
-    <!-- import the webpage's javascript file -->
-    <script src="/script.js" defer></script>
-  </head>
-  <body>
-    <h1>Light and Sound Memory Game</h1>
+function lightButton(btn) {
+  document.getElementById("button" + btn).classList.add("lit");
+}
+function clearButton(btn) {
+  document.getElementById("button" + btn).classList.remove("lit");
+}
+function playSingleClue(btn) {
+  if (gamePlaying) {
+    lightButton(btn);
+    playTone(btn, clueHoldTime);
+    setTimeout(clearButton, clueHoldTime, btn);
+  }
+}
+function playClueSequence() {
+  guessCounter = 0;
+  let delay = nextClueWaitTime; //set delay to initial wait time
+  for (let i = 0; i <= progress; i++) {
+    // for each clue that is revealed so far
+    console.log("play single clue: " + pattern[i] + " in " + delay + "ms");
+    setTimeout(playSingleClue, delay, pattern[i]); // set a timeout to play that clue
+    delay += clueHoldTime;
+    delay += cluePauseTime;
+  }
+}
 
-    <p>
-      Welcome to the game! Repeat back the pattern to win the game!
-    </p>
+function loseGame() {
+  stopGame();
+  alert("Game Over. You lost.");
+}
+function winGame() {
+  stopGame();
+  alert("Game Over. You Won!");
+}
 
-    <button id="startBtn" onclick="startGame()">
-      Start
-    </button>
-
-    <button id="stopBtn" class="hidden" onclick="stopGame()">
-      Stop
-    </button>
-
-    <div id="gameButtonArea">
-      <button
-        id="button1"
-        onclick="guess(1)"
-        onmousedown="startTone(1)"
-        onmouseup="stopTone()"
-      ></button>
-      <button
-        id="button2"
-        onclick="guess(2)"
-        onmousedown="startTone(2)"
-        onmouseup="stopTone()"
-      ></button>
-      <button
-        id="button3"
-        onclick="guess(3)"
-        onmousedown="startTone(3)"
-        onmouseup="stopTone()"
-      ></button>
-      <button
-        id="button4"
-        onclick="guess(4)"
-        onmousedown="startTone(4)"
-        onmouseup="stopTone()"
-      ></button>
-    </div>
-  </body>
-</html>
+function guess(btn) {
+  console.log("user guessed: " + btn);
+  if (!gamePlaying) {
+    return;
+  }
+  if (pattern[guessCounter] == btn) {
+    //User guesses are correct
+    if (guessCounter == progress) {
+      if (progress == pattern.length - 1) {
+        //Game ends, user wins
+        winGame();
+      } else {
+        //After completing pattern, next segment arrives
+        progress++;
+        playClueSequence();
+      }
+    } else {
+      //counts the next guess
+      guessCounter++;
+    }
+  } else {
+    //User guess is incorrect
+    //Game ends, user loses
+    loseGame();
+  }
+}
